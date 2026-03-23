@@ -2,53 +2,51 @@
 <html lang="he" dir="rtl">
 <head>
     <meta charset="UTF-8">
-    <title>מחשבון ארביטראז' מדויק - S&P 500</title>
+    <title>מחשבון ארביטראז' - השוואת מס</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <style>
         body { font-family: 'Segoe UI', sans-serif; background-color: #f8fafc; }
         .card { background: white; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); }
-        th { background-color: #334155; color: white; padding: 12px; position: sticky; top: 0; }
+        th { background-color: #334155; color: white; padding: 12px; position: sticky; top: 0; font-size: 0.85rem; }
         td { padding: 10px; border-bottom: 1px solid #e2e8f0; text-align: center; }
-        .val-up { color: #10b981; font-weight: bold; }
-        .val-down { color: #ef4444; font-weight: bold; }
-        .highlight { background-color: #f0fdf4; font-weight: bold; }
+        .val-profit { color: #10b981; font-weight: bold; }
+        .val-net { color: #059669; font-weight: 800; }
+        .highlight { background-color: #f0fdf4; }
     </style>
 </head>
 <body class="p-4 md:p-10">
-    <div class="max-w-5xl mx-auto">
-        <h1 class="text-3xl font-bold text-slate-800 text-center mb-8">בדיקת כדאיות: הלוואת פריים מול S&P 500</h1>
+    <div class="max-w-6xl mx-auto">
+        <h1 class="text-3xl font-bold text-slate-800 text-center mb-8">סימולציית רווח: עם ובלי מס רווח הון</h1>
         
         <div class="card p-6 mb-8 grid grid-cols-1 md:grid-cols-4 gap-6 items-end">
             <div>
-                <label class="block text-xs font-bold mb-1">סכום ההלוואה (₪)</label>
+                <label class="block text-xs font-bold mb-1">סכום הלוואה (₪)</label>
                 <input type="number" id="loan" value="200000" class="w-full p-2 border rounded" oninput="doCalc()">
             </div>
             <div>
-                <label class="block text-xs font-bold mb-1">ריבית הלוואה שנתית (%)</label>
+                <label class="block text-xs font-bold mb-1">ריבית הלוואה (%)</label>
                 <input type="number" id="loanInt" value="5" step="0.1" class="w-full p-2 border rounded" oninput="doCalc()">
             </div>
             <div>
-                <label class="block text-xs font-bold mb-1">תשואה שנתית S&P (%)</label>
+                <label class="block text-xs font-bold mb-1">תשואה S&P (%)</label>
                 <input type="number" id="marketYield" value="9" step="0.1" class="w-full p-2 border rounded" oninput="doCalc()">
             </div>
-            <button onclick="exportExcel()" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 rounded shadow transition">
-                📥 הורד אקסל לבדיקה
+            <button onclick="exportExcel()" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2 rounded shadow transition">
+                📥 הורד אקסל מלא
             </button>
         </div>
 
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-            <div class="card p-5 text-center">
-                <div class="text-gray-500 text-sm">סה"כ ריבית שתשלם (5 שנים)</div>
-                <div id="sumInt" class="text-xl font-bold text-red-600">0 ₪</div>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+            <div class="card p-5 text-center bg-slate-100 border-l-4 border-slate-400">
+                <div class="text-slate-500 text-sm font-bold">רווח נקי (לפני מס)</div>
+                <div id="sumBeforeTax" class="text-3xl font-black text-slate-700">0 ₪</div>
+                <div class="text-xs text-slate-400 mt-1">רווח מהבורסה פחות ריבית הלוואה</div>
             </div>
-            <div class="card p-5 text-center">
-                <div class="text-gray-500 text-sm">רווח בבורסה (לפני מס)</div>
-                <div id="sumMarket" class="text-xl font-bold text-blue-600">0 ₪</div>
-            </div>
-            <div class="card p-5 text-center border-2 border-emerald-500 bg-emerald-50">
-                <div class="text-emerald-700 font-bold text-sm">שורה תחתונה (נטו בכיס)</div>
-                <div id="sumNet" class="text-2xl font-black text-emerald-600">0 ₪</div>
+            <div class="card p-5 text-center bg-emerald-50 border-l-4 border-emerald-500">
+                <div class="text-emerald-700 text-sm font-bold">רווח סופי בכיס (אחרי מס 25%)</div>
+                <div id="sumAfterTax" class="text-3xl font-black text-emerald-600">0 ₪</div>
+                <div class="text-xs text-emerald-500 mt-1">מה שבאמת נשאר לך ביד</div>
             </div>
         </div>
 
@@ -57,10 +55,10 @@
                 <thead>
                     <tr>
                         <th>חודש</th>
-                        <th>קרן הלוואה</th>
-                        <th>תשלום ריבית (עו"ש)</th>
-                        <th>שווי תיק השקעות</th>
-                        <th>רווח "על הנייר"</th>
+                        <th>תשלום ריבית מצטבר</th>
+                        <th>שווי קופה</th>
+                        <th class="bg-slate-600">רווח נקי (לפני מס)</th>
+                        <th class="bg-emerald-600">רווח נטו (אחרי מס)</th>
                     </tr>
                 </thead>
                 <tbody id="tBody"></tbody>
@@ -84,34 +82,33 @@
                     totalIntPaid += (loan * lInt);
                 }
                 
-                let profitOnPaper = currentVal - loan;
+                // חישובים לכל חודש
+                const profitOnPaper = currentVal - loan; // רק הרווח מהבורסה
+                const taxIfSoldNow = profitOnPaper > 0 ? profitOnPaper * 0.25 : 0;
                 
+                const netBeforeTax = profitOnPaper - totalIntPaid;
+                const netAfterTax = (profitOnPaper - taxIfSoldNow) - totalIntPaid;
+
                 rows += `<tr class="${i === 60 ? 'highlight' : ''}">
                     <td>${i}</td>
-                    <td>${loan.toLocaleString()}</td>
-                    <td>${i === 0 ? '-' : Math.round(loan * lInt).toLocaleString()} ₪</td>
-                    <td class="val-up">${Math.round(currentVal).toLocaleString()} ₪</td>
-                    <td class="${profitOnPaper >= 0 ? 'text-emerald-600' : 'text-red-600'}">
-                        ${Math.round(profitOnPaper).toLocaleString()} ₪
-                    </td>
+                    <td class="text-red-500">-${Math.round(totalIntPaid).toLocaleString()} ₪</td>
+                    <td>${Math.round(currentVal).toLocaleString()} ₪</td>
+                    <td class="val-profit">${Math.round(netBeforeTax).toLocaleString()} ₪</td>
+                    <td class="val-net">${Math.round(netAfterTax).toLocaleString()} ₪</td>
                 </tr>`;
+
+                if (i === 60) {
+                    document.getElementById('sumBeforeTax').innerText = Math.round(netBeforeTax).toLocaleString() + " ₪";
+                    document.getElementById('sumAfterTax').innerText = Math.round(netAfterTax).toLocaleString() + " ₪";
+                }
             }
-
-            // חישוב סופי
-            const totalProfit = currentVal - loan; // הרווח הנומינלי
-            const tax = totalProfit > 0 ? totalProfit * 0.25 : 0; // מס רווח הון
-            const finalNet = (currentVal - tax) - loan - totalIntPaid;
-
             document.getElementById('tBody').innerHTML = rows;
-            document.getElementById('sumInt').innerText = Math.round(totalIntPaid).toLocaleString() + " ₪";
-            document.getElementById('sumMarket').innerText = Math.round(totalProfit).toLocaleString() + " ₪";
-            document.getElementById('sumNet').innerText = Math.round(finalNet).toLocaleString() + " ₪";
         }
 
         function exportExcel() {
             const table = document.getElementById("calcTable");
-            const wb = XLSX.utils.table_to_book(table, {sheet: "Sheet1"});
-            XLSX.writeFile(wb, "Investment_Audit.xlsx");
+            const wb = XLSX.utils.table_to_book(table, {sheet: "Arbitrage_Report"});
+            XLSX.writeFile(wb, "Investment_Analysis.xlsx");
         }
 
         window.onload = doCalc;
