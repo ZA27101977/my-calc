@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <title>מחשבון ארביטראז' - S&P 500</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+</head>
+<body class="bg-slate-50 p-5">
+    <div class="max-w-4xl mx-auto bg-white p-8 rounded-xl shadow-lg">
+        <h1 class="text-2xl font-bold text-center mb-6">מחשבון הלוואה מול השקעה</h1>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+            <div class="space-y-4">
+                <label class="block text-sm font-bold">סכום הלוואה (₪)</label>
+                <input type="number" id="loan" value="200000" class="w-full p-2 border rounded" oninput="calc()">
+                <label class="block text-sm font-bold">ריבית שנתית הלוואה (%)</label>
+                <input type="number" id="int" value="5" step="0.1" class="w-full p-2 border rounded" oninput="calc()">
+            </div>
+            <div class="space-y-4">
+                <label class="block text-sm font-bold">תשואה שנתית צפויה (%)</label>
+                <input type="number" id="yield" value="9" step="0.1" class="w-full p-2 border rounded" oninput="calc()">
+                <div class="p-4 bg-blue-50 rounded text-center">
+                    <div class="text-sm text-blue-600">החזר ריבית חודשי</div>
+                    <div id="monthly" class="text-2xl font-bold">833 ₪</div>
+                </div>
+            </div>
+        </div>
+        <div class="h-64 mb-8"><canvas id="myChart"></canvas></div>
+        <div id="summary" class="text-center p-4 bg-emerald-50 rounded-xl border border-emerald-200 font-bold text-emerald-800"></div>
+    </div>
+    <script>
+        let chart;
+        function calc() {
+            const loan = parseFloat(document.getElementById('loan').value);
+            const int = parseFloat(document.getElementById('int').value) / 100 / 12;
+            const yield = parseFloat(document.getElementById('yield').value) / 100 / 12;
+            document.getElementById('monthly').innerText = Math.round(loan * int) + " ₪";
+            let current = loan; let totalInt = 0; let labels = []; let data = [];
+            for (let i = 0; i <= 60; i++) {
+                if (i > 0) { current *= (1 + yield); totalInt += (loan * int); }
+                if (i % 6 === 0) { labels.push("חודש " + i); data.push(Math.round(current - loan - totalInt)); }
+            }
+            const final = Math.round((current - loan - totalInt) * 0.75);
+            document.getElementById('summary').innerText = "רווח נקי משוער אחרי 5 שנים (כולל מס): " + final.toLocaleString() + " ₪";
+            const ctx = document.getElementById('myChart').getContext('2d');
+            if (chart) chart.destroy();
+            chart = new Chart(ctx, { type: 'line', data: { labels: labels, datasets: [{ label: 'רווח נטו מצטבר', data: data, borderColor: '#10b981', fill: true }] }, options: { maintainAspectRatio: false, scales: { y: { position: 'right' } } } });
+        }
+        window.onload = calc;
+    </script>
+</body>
+</html>
