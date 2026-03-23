@@ -3,111 +3,141 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>מחשבון השקעה S&P 500 מול הלוואה</title>
+    <title>מחשבון השקעה S&P 500 - אקסל וגרף</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <style>
-        body { font-family: 'Segoe UI', system-ui, sans-serif; background-color: #f8fafc; }
-        th { background-color: #1e293b; color: white; position: sticky; top: 0; padding: 12px; }
+        body { font-family: 'Segoe UI', sans-serif; background-color: #f1f5f9; }
+        .card { background: white; border-radius: 12px; shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1); }
+        th { background-color: #1e293b; color: white; position: sticky; top: 0; z-index: 10; padding: 12px; }
         td { padding: 10px; border-bottom: 1px solid #e2e8f0; text-align: center; }
-        tr:nth-child(even) { background-color: #f1f5f9; }
         .positive { color: #10b981; font-weight: bold; }
         .negative { color: #ef4444; font-weight: bold; }
     </style>
 </head>
 <body class="p-4 md:p-8">
     <div class="max-w-6xl mx-auto">
-        <h1 class="text-3xl font-extrabold text-slate-800 text-center mb-8">מחשבון טבלת השקעה ממונפת (S&P 500)</h1>
+        <h1 class="text-3xl font-black text-slate-800 text-center mb-8">סימולציית השקעה ממונפת S&P 500</h1>
         
-        <div class="bg-white p-6 rounded-xl shadow-md mb-8 grid grid-cols-1 md:grid-cols-4 gap-6">
+        <div class="card p-6 mb-8 grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
             <div>
-                <label class="block text-sm font-bold mb-2">סכום הלוואה (₪)</label>
-                <input type="number" id="loan" value="200000" class="w-full p-2 border rounded shadow-sm" oninput="updateTable()">
+                <label class="block text-sm font-bold mb-1 text-slate-600">סכום הלוואה (₪)</label>
+                <input type="number" id="loan" value="200000" class="w-full p-2 border rounded" oninput="run()">
             </div>
             <div>
-                <label class="block text-sm font-bold mb-2">ריבית הלוואה שנתית (%)</label>
-                <input type="number" id="int" value="5" step="0.1" class="w-full p-2 border rounded shadow-sm" oninput="updateTable()">
+                <label class="block text-sm font-bold mb-1 text-slate-600">ריבית שנתית (5%)</label>
+                <input type="number" id="int" value="5" step="0.1" class="w-full p-2 border rounded" oninput="run()">
             </div>
             <div>
-                <label class="block text-sm font-bold mb-2">תשואה צפויה S&P (%)</label>
-                <input type="number" id="yield" value="9" step="0.5" class="w-full p-2 border rounded shadow-sm" oninput="updateTable()">
+                <label class="block text-sm font-bold mb-1 text-slate-600">תשואה צפויה (%)</label>
+                <input type="number" id="yield" value="9" step="0.5" class="w-full p-2 border rounded" oninput="run()">
             </div>
-            <div class="bg-blue-600 text-white p-4 rounded-lg text-center">
-                <div class="text-xs opacity-80">החזר ריבית חודשי (מהעו"ש)</div>
-                <div id="monthlyPay" class="text-xl font-bold">833 ₪</div>
+            <button onclick="exportToExcel()" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2 px-4 rounded shadow-lg transition">
+                📥 הורד קובץ Excel
+            </button>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+            <div class="card p-6 h-80">
+                <h3 class="font-bold mb-4">גרף רווח נטו מצטבר (5 שנים)</h3>
+                <canvas id="mainChart"></canvas>
+            </div>
+            <div class="card p-6 flex flex-col justify-center text-center bg-slate-800 text-white">
+                <div class="text-slate-400 text-sm">רווח נקי משוער (אחרי מס 25%)</div>
+                <div id="finalNet" class="text-4xl font-black text-emerald-400 mt-2">0 ₪</div>
+                <div class="text-xs mt-4 opacity-60">* החישוב מניח תשלום ריבית חודשי מהעו"ש</div>
             </div>
         </div>
 
-        <div class="bg-white rounded-xl shadow-lg overflow-hidden">
-            <div class="max-h-[600px] overflow-y-auto">
-                <table class="w-full border-collapse">
+        <div class="card overflow-hidden">
+            <div class="max-h-96 overflow-y-auto">
+                <table id="dataTable" class="w-full border-collapse">
                     <thead>
                         <tr>
                             <th>חודש</th>
-                            <th>חוב (קרן)</th>
-                            <th>תשלום ריבית</th>
-                            <th>שווי ב-S&P 500</th>
-                            <th>רווח/הפסד נטו (₪)</th>
+                            <th>חוב</th>
+                            <th>ריבית חודשית</th>
+                            <th>שווי קופה</th>
+                            <th>רווח נטו (₪)</th>
                         </tr>
                     </thead>
-                    <tbody id="tableBody">
-                        </tbody>
+                    <tbody id="tableBody"></tbody>
                 </table>
             </div>
         </div>
-
-        <div id="finalSummary" class="mt-6 p-6 bg-slate-800 text-white rounded-xl text-center text-xl font-bold">
-            </div>
     </div>
 
     <script>
-        function updateTable() {
+        let chart;
+        function run() {
             const loan = parseFloat(document.getElementById('loan').value) || 0;
             const annualInt = parseFloat(document.getElementById('int').value) || 0;
             const annualYield = parseFloat(document.getElementById('yield').value) || 0;
+            const monthlyInt = (annualInt / 100) / 12;
+            const monthlyYield = (annualYield / 100) / 12;
             
-            const monthlyIntRate = (annualInt / 100) / 12;
-            const monthlyYieldRate = (annualYield / 100) / 12;
-            const monthlyPayment = loan * monthlyIntRate;
-            
-            document.getElementById('monthlyPay').innerText = Math.round(monthlyPayment).toLocaleString() + " ₪";
-            
-            const tableBody = document.getElementById('tableBody');
-            tableBody.innerHTML = '';
-            
-            let currentValue = loan;
-            let totalInterestPaid = 0;
-            
-            for (let i = 0; i <= 60; i++) { // חישוב ל-5 שנים
+            let currentVal = loan;
+            let totalIntPaid = 0;
+            let tableData = [];
+            let chartLabels = [];
+            let chartData = [];
+
+            for (let i = 0; i <= 60; i++) {
                 if (i > 0) {
-                    currentValue *= (1 + monthlyYieldRate);
-                    totalInterestPaid += monthlyPayment;
+                    currentVal *= (1 + monthlyYield);
+                    totalIntPaid += (loan * monthlyInt);
                 }
+                const net = currentVal - loan - totalIntPaid;
+                tableData.push({ month: i, loan, int: loan * monthlyInt, val: currentVal, net });
                 
-                const netProfit = currentValue - loan - totalInterestPaid;
-                const statusClass = netProfit >= 0 ? 'positive' : 'negative';
-                
-                const row = `
-                    <tr>
-                        <td>${i}</td>
-                        <td>${loan.toLocaleString()} ₪</td>
-                        <td>${i === 0 ? '-' : Math.round(monthlyPayment).toLocaleString() + ' ₪'}</td>
-                        <td>${Math.round(currentValue).toLocaleString()} ₪</td>
-                        <td class="${statusClass}">${Math.round(netProfit).toLocaleString()} ₪</td>
-                    </tr>
-                `;
-                tableBody.innerHTML += row;
-                
-                if (i === 60) {
-                    const tax = netProfit > 0 ? netProfit * 0.25 : 0;
-                    const finalNet = netProfit - tax;
-                    document.getElementById('finalSummary').innerHTML = `
-                        רווח נטו משוער אחרי 5 שנים: ${Math.round(netProfit).toLocaleString()} ₪ <br>
-                        <span class="text-sm font-normal opacity-80">לאחר מס רווח הון (25%): ${Math.round(finalNet).toLocaleString()} ₪</span>
-                    `;
+                if (i % 6 === 0) {
+                    chartLabels.push("חודש " + i);
+                    chartData.push(Math.round(net));
                 }
             }
+
+            renderTable(tableData);
+            renderChart(chartLabels, chartData);
+            
+            const finalNetValue = tableData[60].net;
+            const afterTax = finalNetValue > 0 ? finalNetValue * 0.75 : finalNetValue;
+            document.getElementById('finalNet').innerText = Math.round(afterTax).toLocaleString() + " ₪";
         }
-        window.onload = updateTable;
+
+        function renderTable(data) {
+            const body = document.getElementById('tableBody');
+            body.innerHTML = data.map(row => `
+                <tr>
+                    <td>${row.month}</td>
+                    <td>${row.loan.toLocaleString()}</td>
+                    <td>${row.month === 0 ? '-' : Math.round(row.int).toLocaleString()}</td>
+                    <td>${Math.round(row.val).toLocaleString()}</td>
+                    <td class="${row.net >= 0 ? 'positive' : 'negative'}">${Math.round(row.net).toLocaleString()}</td>
+                </tr>
+            `).join('');
+        }
+
+        function renderChart(labels, data) {
+            const ctx = document.getElementById('mainChart').getContext('2d');
+            if (chart) chart.destroy();
+            chart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [{ label: 'רווח נטו', data: data, borderColor: '#10b981', backgroundColor: 'rgba(16, 185, 129, 0.1)', fill: true, tension: 0.3 }]
+                },
+                options: { maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { position: 'right' }, x: { reverse: true } } }
+            });
+        }
+
+        function exportToExcel() {
+            const table = document.getElementById("dataTable");
+            const wb = XLSX.utils.table_to_book(table, { sheet: "סימולציה" });
+            XLSX.writeFile(wb, "S&P500_Investment_Plan.xlsx");
+        }
+
+        window.onload = run;
     </script>
 </body>
 </html>
