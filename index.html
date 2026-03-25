@@ -2,7 +2,7 @@
 <html lang="he" dir="rtl">
 <head>
     <meta charset="UTF-8">
-    <title>מחשבון ארביטראז' - פירוט החזרי ריבית ורווחים</title>
+    <title>מחשבון ארביטראז' - בחירת תקופה גמישה</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <style>
@@ -11,17 +11,17 @@
         th { background-color: #1e293b; color: white; padding: 12px; position: sticky; top: 0; font-size: 0.75rem; border-left: 1px solid #334155; }
         td { padding: 10px; border-bottom: 1px solid #e2e8f0; text-align: center; font-size: 0.85rem; }
         .val-gross { color: #3b82f6; font-weight: bold; }
-        .val-before { color: #64748b; font-weight: bold; }
         .val-net { color: #10b981; font-weight: 800; }
         .val-pay { color: #ef4444; font-weight: 600; }
         .highlight { background-color: #f8fafc; border-right: 4px solid #10b981; }
+        input[type=range] { width: 100%; cursor: pointer; }
     </style>
 </head>
 <body class="p-4 md:p-8">
     <div class="max-w-7xl mx-auto">
-        <h1 class="text-3xl font-black text-slate-800 text-center mb-6">ניתוח מינוף: החזרי ריבית מול תשואת שוק</h1>
+        <h1 class="text-3xl font-black text-slate-800 text-center mb-6">סימולציית מינוף עם בחירת תקופה</h1>
         
-        <div class="card p-6 mb-8 grid grid-cols-1 md:grid-cols-4 gap-4 items-end shadow-md border-t-4 border-blue-600">
+        <div class="card p-6 mb-8 grid grid-cols-1 md:grid-cols-5 gap-4 items-end shadow-md border-t-4 border-indigo-600">
             <div>
                 <label class="block text-xs font-bold mb-1">סכום הלוואה (₪)</label>
                 <input type="number" id="loan" value="200000" class="w-full p-2 border rounded" oninput="calculate()">
@@ -34,26 +34,30 @@
                 <label class="block text-xs font-bold mb-1">תשואה S&P (%)</label>
                 <input type="number" id="marketYield" value="9" step="0.1" class="w-full p-2 border rounded" oninput="calculate()">
             </div>
+            <div>
+                <label class="block text-xs font-bold mb-1 italic text-indigo-600">תקופת הלוואה: <span id="monthVal">60</span> חודשים</label>
+                <input type="range" id="months" min="1" max="120" value="60" oninput="calculate()">
+            </div>
             <button onclick="exportExcel()" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2 rounded shadow transition flex items-center justify-center gap-2">
-                <span>📥</span> הורד דוח אקסל
+                📥 אקסל
             </button>
         </div>
 
         <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
             <div class="card p-4 text-center">
-                <div class="text-red-500 text-[10px] font-bold uppercase">סה"כ ריבית שתשולם</div>
+                <div class="text-red-500 text-[10px] font-bold uppercase">ריבית מצטברת לבנק</div>
                 <div id="sumTotalInt" class="text-xl font-black text-slate-700">0 ₪</div>
             </div>
-            <div class="card p-4 text-center border-b-4 border-blue-400">
+            <div class="card p-4 text-center">
                 <div class="text-blue-500 text-[10px] font-bold uppercase">רווח בורסה (ברוטו)</div>
                 <div id="sumGross" class="text-xl font-black text-slate-700">0 ₪</div>
             </div>
-            <div class="card p-4 text-center border-b-4 border-slate-400">
-                <div class="text-slate-500 text-[10px] font-bold uppercase">רווח (לפני מס)</div>
+            <div class="card p-4 text-center bg-indigo-50 border-indigo-200 border">
+                <div class="text-indigo-600 text-[10px] font-bold uppercase">רווח לפני מס</div>
                 <div id="sumBeforeTax" class="text-xl font-black text-slate-700">0 ₪</div>
             </div>
             <div class="card p-4 text-center border-b-4 border-emerald-500 bg-emerald-50 shadow-inner">
-                <div class="text-emerald-600 text-[10px] font-bold uppercase italic">נטו סופי בכיס</div>
+                <div class="text-emerald-600 text-[10px] font-bold uppercase">נטו סופי (אחרי מס)</div>
                 <div id="sumNet" class="text-2xl font-black text-emerald-700">0 ₪</div>
             </div>
         </div>
@@ -63,7 +67,7 @@
                 <thead>
                     <tr>
                         <th>חודש</th>
-                        <th class="bg-slate-700">החזר ריבית (מהעו"ש)</th>
+                        <th class="bg-slate-700">החזר ריבית (עו"ש)</th>
                         <th>ריבית מצטברת</th>
                         <th>שווי קופה</th>
                         <th class="bg-blue-50 text-blue-900">רווח גולמי (בורסה)</th>
@@ -74,7 +78,7 @@
             </table>
         </div>
         
-        <p class="text-[11px] text-slate-400 mt-4 text-center">* החישוב מניח מס רווח הון של 25% המשולם במשיכה בתום 5 שנים.</p>
+        <p class="text-[11px] text-slate-400 mt-4 text-center">הסימולציה מניחה תשלום מס רווח הון (25%) בנקודת המשיכה שבחרת.</p>
     </div>
 
     <script>
@@ -82,13 +86,16 @@
             const loan = parseFloat(document.getElementById('loan').value) || 0;
             const lInt = (parseFloat(document.getElementById('loanInt').value) || 0) / 100 / 12;
             const mYield = (parseFloat(document.getElementById('marketYield').value) || 0) / 100 / 12;
+            const totalMonths = parseInt(document.getElementById('months').value);
+            
+            document.getElementById('monthVal').innerText = totalMonths;
             
             let currentVal = loan;
             let totalIntPaid = 0;
             let html = "";
             const monthlyPayment = loan * lInt;
 
-            for (let i = 0; i <= 60; i++) {
+            for (let i = 0; i <= totalMonths; i++) {
                 if (i > 0) {
                     currentVal *= (1 + mYield);
                     totalIntPaid += monthlyPayment;
@@ -99,7 +106,7 @@
                 const netBeforeTax = grossProfit - totalIntPaid;
                 const netAfterTax = (grossProfit - tax) - totalIntPaid;
 
-                html += `<tr class="${i === 60 ? 'highlight font-bold' : ''}">
+                html += `<tr class="${i === totalMonths ? 'highlight font-bold' : ''}">
                     <td>${i}</td>
                     <td class="val-pay">${i === 0 ? '-' : Math.round(monthlyPayment).toLocaleString() + ' ₪'}</td>
                     <td class="text-slate-400">${Math.round(totalIntPaid).toLocaleString()} ₪</td>
@@ -108,7 +115,7 @@
                     <td class="val-net">${Math.round(netAfterTax).toLocaleString()} ₪</td>
                 </tr>`;
 
-                if (i === 60) {
+                if (i === totalMonths) {
                     document.getElementById('sumTotalInt').innerText = Math.round(totalIntPaid).toLocaleString() + " ₪";
                     document.getElementById('sumGross').innerText = Math.round(grossProfit).toLocaleString() + " ₪";
                     document.getElementById('sumBeforeTax').innerText = Math.round(netBeforeTax).toLocaleString() + " ₪";
@@ -121,7 +128,7 @@
         function exportExcel() {
             const table = document.getElementById("mainTable");
             const wb = XLSX.utils.table_to_book(table, {sheet: "InvestmentReport"});
-            XLSX.writeFile(wb, "SP500_Loan_Arbitrage.xlsx");
+            XLSX.writeFile(wb, "Custom_Investment_Plan.xlsx");
         }
 
         window.onload = calculate;
